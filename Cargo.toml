@@ -2,6 +2,15 @@
 name = "polymesh-extension"
 version = "0.1.0"
 edition = "2021"
+authors = [ "Polymesh Association" ]
+readme = "README.md"
+license = "Apache-2.0"
+repository = "https://github.com/PolymeshAssociation/polymesh-extension"
+description = "Polymesh chain extension for Ink! Smart Contracts"
+exclude = [
+	".gitignore",
+	"examples/*",
+]
 
 [dependencies]
 ink_primitives = { version = "=3.0", default-features = false }
