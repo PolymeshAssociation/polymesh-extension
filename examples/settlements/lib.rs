@@ -32,7 +32,6 @@ use polymesh_api::{
       identity_id::{
         PortfolioId,
         PortfolioKind,
-        PortfolioNumber,
       },
     },
   },
@@ -42,8 +41,6 @@ use polymesh_api::{
 mod settlements {
     use ink_storage::{
         traits::{
-            PackedLayout,
-            SpreadLayout,
             SpreadAllocate,
         },
         Mapping,
@@ -53,146 +50,6 @@ mod settlements {
     use crate::*;
 
     pub const UNIT: Balance = 1_000_000u128;
-
-    #[derive(Clone, Copy, Default, PartialEq, Eq, scale::Encode, scale::Decode)]
-    #[derive(SpreadAllocate, SpreadLayout, PackedLayout)]
-    #[cfg_attr(
-        feature = "std",
-        derive(Debug, scale_info::TypeInfo, ink_storage::traits::StorageLayout)
-    )]
-    pub struct Ticker(pub [u8; 12]);
-
-    impl From<super::Ticker> for Ticker {
-      fn from(t: super::Ticker) -> Self {
-        Self(t.0)
-      }
-    }
-
-    impl From<Ticker> for super::Ticker {
-      fn from(t: Ticker) -> Self {
-        Self(t.0)
-      }
-    }
-
-    #[derive(Clone, Copy, Default, scale::Encode, scale::Decode)]
-    #[derive(SpreadAllocate, SpreadLayout, PackedLayout)]
-    #[cfg_attr(
-        feature = "std",
-        derive(Debug, scale_info::TypeInfo, ink_storage::traits::StorageLayout)
-    )]
-    pub struct VenueId(u64);
-
-    impl From<super::VenueId> for VenueId {
-      fn from(v: super::VenueId) -> Self {
-        Self(v.0)
-      }
-    }
-
-    impl From<VenueId> for super::VenueId {
-      fn from(v: VenueId) -> Self {
-        Self(v.0)
-      }
-    }
-
-    #[derive(Clone, Copy, Default, scale::Encode, scale::Decode)]
-    #[derive(SpreadLayout, PackedLayout)]
-    #[cfg_attr(
-        feature = "std",
-        derive(Debug, scale_info::TypeInfo, ink_storage::traits::StorageLayout)
-    )]
-    pub struct PortfolioNumber(u64);
-
-    impl From<super::PortfolioNumber> for PortfolioNumber {
-      fn from(v: super::PortfolioNumber) -> Self {
-        Self(v.0)
-      }
-    }
-
-    impl From<PortfolioNumber> for super::PortfolioNumber {
-      fn from(v: PortfolioNumber) -> Self {
-        Self(v.0)
-      }
-    }
-
-    #[derive(Clone, Copy, scale::Encode, scale::Decode)]
-    #[derive(SpreadLayout, PackedLayout)]
-    #[cfg_attr(
-        feature = "std",
-        derive(Debug, scale_info::TypeInfo, ink_storage::traits::StorageLayout)
-    )]
-    pub enum PortfolioKind {
-      Default,
-      User(PortfolioNumber),
-    }
-
-    impl Default for PortfolioKind {
-      fn default() -> Self {
-        Self::Default
-      }
-    }
-
-    impl From<super::PortfolioKind> for PortfolioKind {
-      fn from(v: super::PortfolioKind) -> Self {
-        match v {
-          super::PortfolioKind::Default => Self::Default,
-          super::PortfolioKind::User(num) => Self::User(num.into()),
-        }
-      }
-    }
-
-    impl From<PortfolioKind> for super::PortfolioKind {
-      fn from(v: PortfolioKind) -> Self {
-        match v {
-          PortfolioKind::Default => super::PortfolioKind::Default,
-          PortfolioKind::User(num) => super::PortfolioKind::User(num.into()),
-        }
-      }
-    }
-
-    #[derive(Clone, Copy, Default, scale::Encode, scale::Decode)]
-    #[derive(SpreadLayout, PackedLayout)]
-    #[cfg_attr(
-        feature = "std",
-        derive(Debug, scale_info::TypeInfo, ink_storage::traits::StorageLayout)
-    )]
-    pub struct PortfolioId {
-      pub did: IdentityId,
-      pub kind: PortfolioKind,
-    }
-
-    impl PortfolioId {
-      pub fn default(did: IdentityId) -> Self {
-        Self {
-          did,
-          kind: PortfolioKind::Default,
-        }
-      }
-
-      pub fn kind(did: IdentityId, kind: PortfolioKind) -> Self {
-        Self {
-          did,
-          kind,
-        }
-      }
-    }
-
-    impl From<super::PortfolioId> for PortfolioId {
-      fn from(v: super::PortfolioId) -> Self {
-        Self {
-          did: v.did,
-          kind: v.kind.into(),
-        }
-      }
-    }
-
-    impl From<PortfolioId> for super::PortfolioId {
-      fn from(v: PortfolioId) -> Self {
-        Self {
-          did: v.did,
-          kind: v.kind.into(),
-        }
-      }
-    }
 
     /// A contract that uses the settlements pallet.
     #[ink(storage)]
@@ -370,26 +227,29 @@ mod settlements {
 
             let api = Api::new();
             // Transfer some tokens to the caller's portfolio.
-            let our_portfolio = PortfolioId::default(self.did);
+            let our_portfolio = PortfolioId {
+              did: self.did,
+              kind: PortfolioKind::Default,
+            };
             api.call().settlement().add_and_affirm_instruction(
-              self.venue.into(),
+              self.venue,
               SettlementType::SettleOnAffirmation,
               None,
               None,
               vec![Leg {
-                from: our_portfolio.into(),
-                to: caller_portfolio.into(),
-                asset: self.ticker1.into(),
+                from: our_portfolio,
+                to: caller_portfolio,
+                asset: self.ticker1,
                 amount: 10 * UNIT,
               }, Leg {
-                from: our_portfolio.into(),
-                to: caller_portfolio.into(),
-                asset: self.ticker2.into(),
+                from: our_portfolio,
+                to: caller_portfolio,
+                asset: self.ticker2,
                 amount: 20 * UNIT,
               }],
               vec![
-                our_portfolio.into(),
-                caller_portfolio.into(),
+                our_portfolio,
+                caller_portfolio,
               ],
             ).submit()?;
 
@@ -405,12 +265,15 @@ mod settlements {
             // Ensure the caller doesn't have a portfolio.
             self.ensure_no_portfolio(caller_did)?;
 
-            let portfolio = PortfolioId::kind(caller_did, portfolio);
+            let portfolio = PortfolioId {
+              did: caller_did,
+              kind: portfolio,
+            };
             let api = Api::new();
             // Accept authorization.
             api.call().portfolio().accept_portfolio_custody(auth_id).submit()?;
             // Check that we are the custodian.
-            if !api.query().portfolio().portfolios_in_custody(self.did, portfolio.into())? {
+            if !api.query().portfolio().portfolios_in_custody(self.did, portfolio)? {
               return Err(Error::InvalidPortfolioAuthorization);
             }
             // Save the caller's portfolio.
@@ -429,7 +292,10 @@ mod settlements {
 
             // Get the caller's identity.
             let caller_did = self.get_caller_did()?;
-            let dest = PortfolioId::kind(caller_did, dest);
+            let dest = PortfolioId {
+              did: caller_did,
+              kind: dest,
+            };
 
             // Ensure the caller has a portfolio.
             let caller_portfolio = self.ensure_has_portfolio(caller_did)?;
@@ -437,10 +303,10 @@ mod settlements {
             let api = Api::new();
             // Move funds out of the contract controlled portfolio.
             api.call().portfolio().move_portfolio_funds(
-              caller_portfolio.into(), // Contract controlled portfolio.
+              caller_portfolio, // Contract controlled portfolio.
               dest.into(), // Caller controlled portfolio.
               vec![MovePortfolioItem {
-                ticker: ticker.into(),
+                ticker: ticker,
                 amount,
                 memo: None,
               }]).submit()?;
@@ -460,7 +326,7 @@ mod settlements {
 
             let api = Api::new();
             // Remove our custodianship.
-            api.call().portfolio().quit_portfolio_custody(portfolio.into()).submit()?;
+            api.call().portfolio().quit_portfolio_custody(portfolio).submit()?;
             // Remove the portfolio.
             self.portfolios.remove(caller_did);
 
@@ -482,26 +348,29 @@ mod settlements {
 
             let api = Api::new();
             // Use settlement to complete the trade.
-            let our_portfolio = PortfolioId::default(self.did);
+            let our_portfolio = PortfolioId {
+              did: self.did,
+              kind: PortfolioKind::Default,
+            };
             api.call().settlement().add_and_affirm_instruction(
-              self.venue.into(),
+              self.venue,
               SettlementType::SettleOnAffirmation,
               None,
               None,
               vec![Leg {
-                from: caller_portfolio.into(),
-                to: our_portfolio.into(),
-                asset: sell.into(),
+                from: caller_portfolio,
+                to: our_portfolio,
+                asset: sell,
                 amount: sell_amount,
               }, Leg {
-                from: our_portfolio.into(),
-                to: caller_portfolio.into(),
-                asset: buy.into(),
+                from: our_portfolio,
+                to: caller_portfolio,
+                asset: buy,
                 amount: buy_amount,
               }],
               vec![
-                our_portfolio.into(),
-                caller_portfolio.into(),
+                our_portfolio,
+                caller_portfolio,
               ],
             ).submit()?;
 
