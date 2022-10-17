@@ -7,7 +7,7 @@ use ink_lang as ink;
 use polymesh_api::{
   Api,
   ink::{
-    extension::PolymeshEnvironment,
+    extension::{PolymeshEnvironment, PolymeshRuntimeErr},
     basic_types::IdentityId,
     Error as PolymeshError,
   },
@@ -23,7 +23,6 @@ use polymesh_api::{
       MovePortfolioItem
     },
     polymesh_primitives::{
-      secondary_key::KeyRecord,
       ticker::Ticker,
       asset::{
         AssetName,
@@ -99,6 +98,12 @@ mod settlements {
       }
     }
 
+    impl From<PolymeshRuntimeErr> for Error {
+      fn from(err: PolymeshRuntimeErr) -> Self {
+        Self::PolymeshError(err.into())
+      }
+    }
+
     /// The contract result type.
     pub type Result<T> = core::result::Result<T, Error>;
 
@@ -139,12 +144,9 @@ mod settlements {
         }
 
         fn get_did(&self, acc: AccountId) -> Result<IdentityId> {
-            let api = Api::new();
-            match api.query().identity().key_records(acc)? {
-              Some(KeyRecord::PrimaryKey(did)) => Ok(did.into()),
-              Some(KeyRecord::SecondaryKey(did, _)) => Ok(did.into()),
-              _ => Err(Error::MissingIdentity),
-            }
+            Self::env().extension().get_key_did(acc)?
+              .map(|did| did.into())
+              .ok_or(Error::MissingIdentity)
         }
 
         fn get_caller_did(&self) -> Result<IdentityId> {

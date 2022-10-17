@@ -2,7 +2,7 @@
 
 extern crate alloc;
 
-use ink_env::Environment;
+use ink_env::{AccountId, Environment};
 use ink_lang as ink;
 
 use scale::{Encode, Output};
@@ -53,6 +53,18 @@ pub trait PolymeshRuntime {
 
     #[ink(extension = 0x00_00_00_04, returns_result = false)]
     fn get_transaction_version() -> u32;
+
+    #[ink(extension = 0x00_00_00_05, returns_result = false)]
+    fn get_key_did(key: AccountId) -> Option<[u8; 32]>;
+
+    #[ink(extension = 0x00_00_00_10, returns_result = false)]
+    fn twox_64(data: Encoded) -> [u8; 8];
+
+    #[ink(extension = 0x00_00_00_11, returns_result = false)]
+    fn twox_128(data: Encoded) -> [u8; 16];
+
+    #[ink(extension = 0x00_00_00_12, returns_result = false)]
+    fn twox_256(data: Encoded) -> [u8; 32];
 }
 
 pub type PolymeshRuntimeInstance = <PolymeshRuntime as ink::ChainExtensionInstance>::Instance;
